@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, FileText, CheckCircle } from 'lucide-react'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import { SalesChart } from '@/components/dashboard/sales-chart'
+import { CategoryChart } from '@/components/dashboard/category-chart'
+import { ProjectStatusChart } from '@/components/dashboard/project-status-chart'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +63,7 @@ export default async function DashboardPage() {
     .reduce((sum, p) => sum + (Number(p.sales_amount) * Number(p.probability) / 100), 0) || 0
 
   // 担当者別集計
-  const userStats = allProjects?.reduce((acc: any[], project) => {
+  const userStats = allProjects?.reduce((acc: any[], project: any) => {
     const userId = project.assigned_user_id
     const userName = (project.assigned_user as any)?.name || '不明'
     
@@ -82,6 +85,63 @@ export default async function DashboardPage() {
     }
     return acc
   }, []) || []
+
+  // 過去6ヶ月の月次データを取得
+  const monthlyData = []
+  for (let i = 5; i >= 0; i--) {
+    const targetDate = subMonths(now, i)
+    const targetMonth = format(targetDate, 'yyyy-MM-01')
+    
+    // その月の目標を取得
+    const monthTarget = await supabase
+      .from('monthly_targets')
+      .select('*')
+      .eq('target_month', targetMonth)
+      .is('user_id', null)
+      .single()
+    
+    // その月の受注案件を取得
+    const monthProjects = allProjects?.filter((p: any) => 
+      p.status === 'won' && 
+      p.expected_booking_month?.startsWith(targetMonth)
+    ) || []
+    
+    const monthSales = monthProjects.reduce((sum: number, p: any) => sum + Number(p.sales_amount), 0)
+    const monthProfit = monthProjects.reduce((sum: number, p: any) => sum + Number(p.gross_profit), 0)
+    
+    monthlyData.push({
+      month: targetMonth,
+      sales: monthSales,
+      profit: monthProfit,
+      target: Number(monthTarget.data?.sales_target || 0)
+    })
+  }
+
+  // カテゴリ別集計（受注案件のみ）
+  const categoryData = allProjects
+    ?.filter((p: any) => p.status === 'won')
+    .reduce((acc: any[], project: any) => {
+      const category = project.category || '未分類'
+      const existing = acc.find(c => c.name === category)
+      if (existing) {
+        existing.value += Number(project.sales_amount)
+      } else {
+        acc.push({
+          name: category,
+          value: Number(project.sales_amount)
+        })
+      }
+      return acc
+    }, []) || []
+
+  // ステータス別集計（件数と金額）
+  const statusChartData = [
+    { status: 'リード', count: allProjects?.filter((p: any) => p.status === 'lead').length || 0, amount: allProjects?.filter((p: any) => p.status === 'lead').reduce((sum: number, p: any) => sum + Number(p.sales_amount), 0) || 0 },
+    { status: '商談中', count: statusCount.negotiation, amount: allProjects?.filter((p: any) => p.status === 'negotiation').reduce((sum: number, p: any) => sum + Number(p.sales_amount), 0) || 0 },
+    { status: '提案中', count: statusCount.proposal, amount: allProjects?.filter((p: any) => p.status === 'proposal').reduce((sum: number, p: any) => sum + Number(p.sales_amount), 0) || 0 },
+    { status: '受注', count: statusCount.won, amount: salesActual },
+    { status: '失注', count: statusCount.lost, amount: 0 },
+  ]
 
   return (
     <div className="space-y-6">
@@ -165,7 +225,7 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {userStats.map((user) => (
+                  {userStats.map((user: any) => (
                     <tr key={user.userId} className="border-b">
                       <td className="py-2">{user.userName}</td>
                       <td className="py-2 text-right">¥{user.sales.toLocaleString()}</td>
@@ -179,6 +239,40 @@ export default async function DashboardPage() {
           ) : (
             <p className="text-sm text-gray-500">今月の受注実績がありません</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* グラフエリア */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>月次売上推移</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SalesChart data={monthlyData} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>カテゴリ別売上</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {categoryData.length > 0 ? (
+              <CategoryChart data={categoryData} />
+            ) : (
+              <p className="text-sm text-gray-500">データがありません</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>ステータス別案件分析</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProjectStatusChart data={statusChartData} />
         </CardContent>
       </Card>
     </div>

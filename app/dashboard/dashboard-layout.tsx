@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LayoutDashboard, FolderKanban, Target, Settings, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, FolderKanban, Target, Users, Settings, LogOut, User } from 'lucide-react'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -34,7 +34,10 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
   ]
 
   if (user.role === 'admin') {
-    navigation.push({ name: '設定', href: '/dashboard/settings', icon: Settings })
+    navigation.push(
+      { name: 'ユーザー管理', href: '/dashboard/users', icon: Users },
+      { name: '設定', href: '/dashboard/settings', icon: Settings }
+    )
   }
 
   return (

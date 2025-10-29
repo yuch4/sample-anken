@@ -1,3 +1,10 @@
+かならず日本語で回答すること
+回答の最初に必ず「💡」をつけること
+
+# 動作確認
+- playwright mcpとpuppeteer mcpを使って開発サーバを起動して実際の動作を確認すること
+- 
+
 # 営業案件管理システム - AI Coding Agent Instructions
 
 ## プロジェクト概要

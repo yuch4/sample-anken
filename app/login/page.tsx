@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import LoginForm from './login-form'
 
 export const metadata: Metadata = {
@@ -19,6 +20,12 @@ export default function LoginPage() {
           </p>
         </div>
         <LoginForm />
+        <p className="text-center text-sm text-gray-600">
+          アカウントをお持ちでない方は{' '}
+          <Link href="/signup" className="font-medium text-blue-600 hover:underline">
+            新規登録
+          </Link>
+        </p>
       </div>
     </div>
   )

@@ -42,7 +42,7 @@ export async function signup(formData: FormData) {
       id: authData.user.id,
       email: data.email,
       name: name,
-      role: 'user',
+      role: 'sales', // デフォルトは営業ユーザー
     })
 
     if (profileError) {
